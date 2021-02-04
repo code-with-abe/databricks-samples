@@ -26,10 +26,6 @@ v_databricks_domain = "adb-xxxxxxxxxxxx.azuredatabricks.net"
 
 # COMMAND ----------
 
-
-
-# COMMAND ----------
-
 # DBTITLE 0,Connect to Azure Purview using Service Principal
 # Databricks notebook source
 import argparse
@@ -185,11 +181,11 @@ for tbl in tbls.rdd.collect():
 # MAGIC -- Ensure you have run the 01-collect-databricks-metadata notebook before running the rest of the notebook
 # MAGIC --https://github.com/code-with-abe/databricks-samples/blob/main/administration/01-collect-databricks-metadata.py
 # MAGIC 
-# MAGIC select databaseName,tableName,colName,dataType from dataops.dbr_columns where databaseName = 'acctdb' and tableName = 'account_overview'
+# MAGIC select databaseName,tableName,colName,dataType from dataops.dbr_columns
 
 # COMMAND ----------
 
-tblCols = spark.sql("select databaseName,tableName,colName,dataType from dataops.dbr_columns where databaseName = 'acctdb' and tableName = 'account_overview' ")
+tblCols = spark.sql("select databaseName,tableName,colName,dataType from dataops.dbr_columns ")
 
 input_columns = []
 for tblCol in tblCols.rdd.collect():  
@@ -219,7 +215,7 @@ for tblCol in tblCols.rdd.collect():
 
 # First lookup the qualified name of the source
 InputEntity = client.get_entity(
-        qualifiedName=["https://abedatalake01.dfs.core.windows.net/datafiles/demos/loan_risk_data.csv"],
+        qualifiedName=["https://xxxxxxxxxx.dfs.core.windows.net/datafiles/demos/loan_risk_data.csv"],
         typeName= 'azure_datalake_gen2_path'
     )
 
@@ -227,7 +223,7 @@ InputEntity = client.get_entity(
 
 # First lookup the qualified name of the target
 OutputEntity = client.get_entity(
-        qualifiedName=["databricks://adb-2578185452046759.19.azuredatabricks.net/demo/loans_sample"],
+        qualifiedName=["databricks://adb-xxxxxxxxxxx.xx.azuredatabricks.net/demo/loans_sample"],
         typeName="databricks_table"
     )
 
@@ -236,7 +232,7 @@ OutputEntity = client.get_entity(
 # Databricks Jobs
 job_process = AtlasProcess(
   name="job201",
-  qualified_name = "databricks://adb-2578185452046759.19.azuredatabricks.net/jobs/job201",
+  qualified_name = "databricks://adb-xxxxxxxxxxxx.xx.azuredatabricks.net/jobs/job201",
   typeName="databricks_job",
   guid=guid.get_guid(),
   attributes = {"job_type":"notebook","notebook_path":"/Shared/jobs/job201"},
