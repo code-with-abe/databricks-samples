@@ -26,6 +26,10 @@ v_databricks_domain = "adb-xxxxxxxxxxxx.azuredatabricks.net"
 
 # COMMAND ----------
 
+
+
+# COMMAND ----------
+
 # DBTITLE 0,Connect to Azure Purview using Service Principal
 # Databricks notebook source
 import argparse
@@ -78,6 +82,10 @@ databricks_table_type = EntityTypeDef(
   superTypes = ["DataSet"],
   options = {"schemaElementAttribute":"columns"}
  )
+typedef_results = client.upload_typedefs({"entityDefs":[databricks_table_type.to_json()]},  force_update=True)
+print(typedef_results)
+
+# COMMAND ----------
 
 # Databricks Column
 databricks_column_type = EntityTypeDef(
@@ -87,6 +95,13 @@ databricks_column_type = EntityTypeDef(
   ],
   superTypes = ["DataSet"],
 )
+
+typedef_results = client.upload_typedefs({"entityDefs":[databricks_column_type.to_json()]},  force_update=True)
+print(typedef_results)
+
+
+
+# COMMAND ----------
 
 # Databricks Jobs
 databricks_job_type = EntityTypeDef(
@@ -98,6 +113,13 @@ databricks_job_type = EntityTypeDef(
   ],
   superTypes = ["Process"]
 )
+
+typedef_results = client.upload_typedefs({"entityDefs":[databricks_job_type.to_json()]},  force_update=True)
+print(typedef_results)
+
+
+
+# COMMAND ----------
 
 # Databricks Column to Table Relationship
 databricks_column_to_table = RelationshipTypeDef(
@@ -119,13 +141,7 @@ databricks_column_to_table = RelationshipTypeDef(
       }
 )
 
-# Upload these types
-typedef_results = client.upload_typedefs(
-  {"entityDefs":[databricks_table_type.to_json(), databricks_column_type.to_json(), databricks_job_type.to_json()],
-   "relationshipDefs":[databricks_column_to_table.to_json()]
-  }, 
-  force_update=True)
-
+typedef_results = client.upload_typedefs({"relationshipDefs":[databricks_column_to_table.to_json()]},  force_update=True)
 print(typedef_results)
 
 # COMMAND ----------
@@ -145,9 +161,9 @@ print(typedef_results)
 
 tbls = spark.sql("select databaseName,tableFormat,tableName,location,numFiles,sizeInBytes from dataops.dbr_tables")
 
-input_tables = []
 for tbl in tbls.rdd.collect():
-  #print("Processing table: "+tbl.tableName)
+  print("Uploading table: "+tbl.tableName)
+  time.sleep(5)
   table_entity = AtlasEntity(
   name=tbl.tableName,
   qualified_name = "databricks://"+v_databricks_domain+"/"+tbl.databaseName+"/"+tbl.tableName,
@@ -155,11 +171,8 @@ for tbl in tbls.rdd.collect():
   attributes = {"format":tbl.tableFormat,"location":tbl.location,"num_files":tbl.numFiles,"size":tbl.sizeInBytes},
   guid=guid.get_guid(),
   )
-  input_tables.append(table_entity)
-  time.sleep(2)
+  client.upload_entities(table_entity)
 
-batch = input_tables
-client.upload_entities(batch=batch)
 
 # COMMAND ----------
 
@@ -172,20 +185,19 @@ client.upload_entities(batch=batch)
 # MAGIC -- Ensure you have run the 01-collect-databricks-metadata notebook before running the rest of the notebook
 # MAGIC --https://github.com/code-with-abe/databricks-samples/blob/main/administration/01-collect-databricks-metadata.py
 # MAGIC 
-# MAGIC select databaseName,tableName,colName,dataType from dataops.dbr_columns where databaseName = 'acctdb' and tableName = 'account_financials_annual'
+# MAGIC select databaseName,tableName,colName,dataType from dataops.dbr_columns where databaseName = 'acctdb' and tableName = 'account_overview'
 
 # COMMAND ----------
 
-tblCols = spark.sql("select databaseName,tableName,colName,dataType from dataops.dbr_columns where databaseName = 'acctdb' and tableName = 'account_financials_annual'")
+tblCols = spark.sql("select databaseName,tableName,colName,dataType from dataops.dbr_columns where databaseName = 'acctdb' and tableName = 'account_overview' ")
 
 input_columns = []
-for tblCol in tblCols.rdd.collect():
-  time.sleep(2)
+for tblCol in tblCols.rdd.collect():  
   tableEntity = client.get_entity(
         qualifiedName=["databricks://"+v_databricks_domain+"/"+tblCol.databaseName+"/"+tblCol.tableName],
         typeName="databricks_table"
     )
-  #print("Processing table: "+"databricks://"+v_databricks_domain+"/"+tblCol.databaseName+"/"+tblCol.tableName)
+  time.sleep(5)
   temp_column = AtlasEntity(
     name = tblCol.colName,
     typeName = "databricks_column",
@@ -194,11 +206,9 @@ for tblCol in tblCols.rdd.collect():
     attributes = {"data_type":tblCol.dataType},
     relationshipAttributes = {"table":tableEntity.get("entities")[0]}
   )
-  #print("Processing Column: "+"databricks://"+v_databricks_domain+"/"+tblCol.databaseName+"/"+tblCol.tableName+"#"+tblCol.colName)
-  input_columns.append(temp_column)
+  print("Uploading Column: "+"databricks://"+v_databricks_domain+"/"+tblCol.databaseName+"/"+tblCol.tableName+"#"+tblCol.colName)
+  client.upload_entities(temp_column)
 
-batch = input_columns
-client.upload_entities(batch=batch)
 
 # COMMAND ----------
 
@@ -217,7 +227,7 @@ InputEntity = client.get_entity(
 
 # First lookup the qualified name of the target
 OutputEntity = client.get_entity(
-        qualifiedName=["databricks://adb-xxxxxx.azuredatabricks.net/demo/loans_sample"],
+        qualifiedName=["databricks://adb-2578185452046759.19.azuredatabricks.net/demo/loans_sample"],
         typeName="databricks_table"
     )
 
@@ -226,7 +236,7 @@ OutputEntity = client.get_entity(
 # Databricks Jobs
 job_process = AtlasProcess(
   name="job201",
-  qualified_name = "databricks://adb-xxxxxxxxxxxx.19.azuredatabricks.net/jobs/job201",
+  qualified_name = "databricks://adb-2578185452046759.19.azuredatabricks.net/jobs/job201",
   typeName="databricks_job",
   guid=guid.get_guid(),
   attributes = {"job_type":"notebook","notebook_path":"/Shared/jobs/job201"},
@@ -234,6 +244,4 @@ job_process = AtlasProcess(
   outputs = [OutputEntity.get("entities")[0]]
 )
 
-batch = [ job_process.to_json()] 
-# Upload all entities!
-#client.upload_entities(batch=batch)
+client.upload_entities(job_process)
